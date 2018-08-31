@@ -7,206 +7,162 @@
 //         			 a shared set of savings and checking accounts
 //							 for a three member family.
 
+#include <array>
+#include <string>
+#include "pthread_practice.hpp"
 
-#include "pthread_practice.h"
-
-using namespace std;
-
-int main(int argc, char *argv[])
-{	
+int main(int argc, char *argv[]) {
 	// Declare thread id's and filename strings.
 	pthread_t tid[3];
-	string file[3];
+    std::array<std::string, 3> file;
 	
 	// Make sure there are enough files entered.
-	if (argc != 4)
-	{
-		cout << "Please make sure you have entered: " << endl;
-		cout << "father.txt" << endl << "mother.txt" << endl;
-		cout << "daughter.txt" << endl;
-	}else
-	{
+    if (argc != 4) {
+        std::cout << "Please make sure you have entered: " << std::endl;
+        std::cout << "father.txt" << std::endl << "mother.txt" << std::endl;
+        std::cout << "daughter.txt" << std::endl;
+    } else {
 		// Create 3 threads and pass the filenames to each one.
-		for (int i=1; i < 4; i++)
-		{
-			file[i-1] = argv[i];
-			pthread_create(&tid[i-1], NULL, family_member, (void *) &file[i-1]);
+        for(size_t i=0; i < 3; i++) {
+            file[i] = argv[i];
+            pthread_create(&tid[i], nullptr, family_member, static_cast<void*>(&file[i]));
 		}
-		for (int i=0; i < 3; i++)
-		{
+        for(const auto& t : tid) {
 			// Have each thread rejoin after its execution.
-			pthread_join(tid[i], NULL);
+            pthread_join(t, nullptr);
 		}
 	}
 	return 0;
 }
 
 // Thread that simulates a family member.
-void *family_member(void * text_file)
-{
-	string *file_name;
-	file_name = (string *) text_file;
-	if (*(file_name) == "father.txt")
-	{
+void* family_member(void* text_file) {
+    auto file_name = static_cast<std::string*>(text_file);
+    if(*(file_name) == "father.txt") {
 		// If passed the father file, simulate the father.
 		father();
-	}else
-	if (*(file_name) == "mother.txt")
-	{
+    } else if(*(file_name) == "mother.txt") {
 		// If passed the mother file, simulate the mother.
 		mother();
-	}else
-	if (*(file_name) == "daughter.txt")
-	{
+    } else if(*(file_name) == "daughter.txt") {
 		// If passed the daughter file, simulate the daughter.
 		daughter();
 	}
-	return 0;
+    return nullptr;
 }
 
 // Function that simulates the father.
 void father()
 {
-	string accountName;
+    std::string accountName;
 	char operation;
 	int account;
 	int amount;
-	ifstream inFile;
+    std::ifstream inFile;
 	inFile.open("father.txt");
-	while(!inFile.eof())
-	{
+    while(!inFile.eof()) {
 		inFile >> operation;
 		inFile >> account;
 		inFile >> amount;
-		if (account == 0) // This block interprets the number
-		{									// into english for output.
+        if(account == 0) { // This block interprets the number
 			accountName = "checking";
-		}else
-		if (account == 1)
-		{
-			accountName == "savings";
+        } else if (account == 1) {
+            accountName = "savings";
 		}
 		
-		if (operation == 'd')
-		{
+        if(operation == 'd') {
 			// Deposit routine for father.
-			if (account == 0)
-			{
+            if(account == 0) {
 				pthread_mutex_lock(&checkingLock);
 				checking = checking + amount;
-				cout << "Bruce deposited $" << amount << ". New " <<
-					accountName << " balance: $" << checking << endl;
+                std::cout << "Bruce deposited $" << amount << ". New "
+                          << accountName << " balance: $" << checking << std::endl;
 				pthread_mutex_unlock(&checkingLock);
-			}else
-			if (account == 1)
-			{
-				pthread_mutex_lock(&savingsLock);
+            } else if(account == 1) {
+                pthread_mutex_lock(&savingsLock);
 				savings = savings + amount;
-				cout << "Bruce deposited $" << amount << ". New " <<
-					accountName << " balance: $" << savings << endl;
+                std::cout << "Bruce deposited $" << amount << ". New "
+                          << accountName << " balance: $" << savings << std::endl;
 				pthread_mutex_unlock(&savingsLock);
-			}else
-			{
+            } else {
 				// Error check for input info.
-				cout << "UNKNOWN ACCOUNT" << endl;
+                std::cout << "UNKNOWN ACCOUNT" << std::endl;
 			}
-		}else
-		if (operation == 'w')
-		{
+        } else if(operation == 'w') {
 			// Withdraw routine for father.
 			// Lock whichever account is being accessed.
-			if (account == 0)
-			{
+            if(account == 0) {
 				pthread_mutex_lock(&checkingLock);
-				if (amount > checking)
-				{
+                if(amount > checking) {
 					// Lock both accounts if transfering.
 					pthread_mutex_lock(&transferLock);
 					pthread_mutex_lock(&savingsLock);
-					if (savings > 0)
-					{
+                    if(savings > 0) {
 						savings = savings + checking;
 						checking = 0;
 						savings = savings - amount;
-						cout << "Bruce withdrew $" << amount << "." << endl;
+                        std::cout << "Bruce withdrew $" << amount << "." << std::endl;
 						printBalances();
-					}else
-					{
-						cout << "Bruce cannot withdraw $" << amount <<
-							". Insufficient funds." << endl;
+                    } else {
+                        std::cout << "Bruce cannot withdraw $" << amount
+                                  << ". Insufficient funds." << std::endl;
 					}
 					pthread_mutex_unlock(&savingsLock);
 					pthread_mutex_unlock(&transferLock);
-				}else
-				{
+                } else {
 					checking = checking - amount;
-					cout << "Bruce withdrew $" << amount << ". New " <<
-						accountName << " balance: $" << checking << endl;
+                    std::cout << "Bruce withdrew $" << amount << ". New "
+                              << accountName << " balance: $" << checking << std::endl;
 				}
 				pthread_mutex_unlock(&checkingLock);
-			}else
-			if (account == 1)
-			{
+            } else if(account == 1) {
 				pthread_mutex_lock(&savingsLock);
 				{
-					if (savings > 0)
-					{
+                    if(savings > 0) {
 						savings = savings - amount;
-						cout << "Bruce withdrew $" << amount << ". New" <<
-							accountName << " balance: $" << savings << endl;
-					}else
-					{
-						cout << "Bruce cannot withdraw $" << amount <<
-							". Insufficient funds." << endl;
+                        std::cout << "Bruce withdrew $" << amount << ". New"
+                                  << accountName << " balance: $" << savings << std::endl;
+                    } else {
+                        std::cout << "Bruce cannot withdraw $" << amount <<
+                                     ". Insufficient funds." << std::endl;
 					}
 				}
 				pthread_mutex_unlock(&savingsLock);
-			}else
-			{
+            } else {
 				// Error check for input info.
-				cout << "UNKNOWN ACCOUNT" << endl;
+                std::cout << "UNKNOWN ACCOUNT" << std::endl;
 			}	
-		}else
-		if (operation == 't')
-		{
+        } else if(operation == 't') {
 			// Transfer routine for father.
 			// Lock both accounts when transfering.
 			pthread_mutex_lock(&transferLock);
 			pthread_mutex_lock(&checkingLock);
 			pthread_mutex_lock(&savingsLock);
-			if (account == 0)
-			{
-				if (savings > 0)
-				{
+            if(account == 0) {
+                if(savings > 0) {
 					checking = checking + amount;
 					savings = savings - amount;
-					cout << "Bruce transferred $" << amount <<
-						" from savings to checking." << endl;
+                    std::cout << "Bruce transferred $" << amount <<
+                                 " from savings to checking." << std::endl;
 					printBalances();
-				}else
-				{
-					cout << "Bruce cannot transfer $" << amount <<
-						". Insufficient funds." << endl;
+                } else {
+                    std::cout << "Bruce cannot transfer $" << amount
+                              << ". Insufficient funds." << std::endl;
 				}
-			}else
-			if (account == 1)
-			{
-				if (checking > 0)
-				{
+            } else if(account == 1) {
+                if(checking > 0) {
 					checking = checking - amount;
 					savings = savings + amount;
-					cout << "Bruce transferred $" << amount <<
-						" from checking to savings." << endl;
+                    std::cout << "Bruce transferred $" << amount
+                         << " from checking to savings." << std::endl;
 					printBalances();
-				}else
-				{
-					cout << "Bruce cannot transfer $" << amount <<
-						". Insufficient funds." << endl;
+                } else {
+                    std::cout << "Bruce cannot transfer $" << amount
+                         << ". Insufficient funds." << std::endl;
 				}
-			}else
-			{
+            } else {
 				// Error check for input info.
-				cout << "UNKNOWN ACCOUNT" << endl;
+                std::cout << "UNKNOWN ACCOUNT" << std::endl;
 			}
 			pthread_mutex_unlock(&savingsLock);
 			pthread_mutex_unlock(&checkingLock);
@@ -214,322 +170,254 @@ void father()
 		}else
 		{
 			// Error check for input info.
-			cout << "Not a recognized operation" << endl;
+            std::cout << "Not a recognized operation" << std::endl;
 		}
 	}
-	inFile.close();
 	return;
 }
 
-void mother()
-{
-	string accountName;
+void mother() {
+    std::string accountName;
 	char operation;
 	int account;
 	int amount;
-	ifstream inFile;
+    std::ifstream inFile;
 	inFile.open("mother.txt");
-	while(!inFile.eof())
-	{
+    while(!inFile.eof()) {
 		inFile >> operation;
 		inFile >> account;
 		inFile >> amount;
-		if (account == 0)
-		{
+        if(account == 0) {
 			accountName = "checking";
-		}else
-		if (account == 1)
-		{
-			accountName == "savings";
+        } else if(account == 1) {
+            accountName = "savings";
 		}
 		
-		if (operation == 'd')
-		{
+        if(operation == 'd') {
 			// Deposit routine for mother.
-			if (account == 0)
-			{
+            if(account == 0) {
 				pthread_mutex_lock(&checkingLock);
 				checking = checking + amount;
-				cout << "Jennifer deposited $" << amount << ". New " <<
-					accountName << " balance: $" << checking << endl;
+                std::cout << "Jennifer deposited $" << amount << ". New " <<
+                             accountName << " balance: $" << checking << std::endl;
 				pthread_mutex_unlock(&checkingLock);
-			}else
-			if (account == 1)
-			{
+            } else if(account == 1) {
 				pthread_mutex_lock(&savingsLock);
 				savings = savings + amount;
-				cout << "Jennifer deposited $" << amount << ". New " <<
-					accountName << " balance: $" << savings << endl;
+                std::cout << "Jennifer deposited $" << amount << ". New " <<
+                             accountName << " balance: $" << savings << std::endl;
 				pthread_mutex_unlock(&savingsLock);
-			}else
-			{
+            } else {
 				// Error check for input info.
-				cout << "UNKNOWN ACCOUNT" << endl;
+                std::cout << "UNKNOWN ACCOUNT" << std::endl;
 			}
-		}else
-		if (operation == 'w')
-		{
+        } else if(operation == 'w') {
 			// Withdraw routine for mother.
 			// Lock whichever account is being accessed.
-			if (account == 0)
-			{
+            if(account == 0) {
 				pthread_mutex_lock(&checkingLock);
-				if (amount > checking)
-				{
+                if(amount > checking) {
 					// Lock both accounts if transfering.
 					pthread_mutex_lock(&transferLock);
 					pthread_mutex_lock(&savingsLock);
-					if (savings > 0)
-					{
+                    if(savings > 0) {
 						savings = savings + checking;
 						checking = 0;
 						savings = savings - amount;
-						cout << "Jennifer withdrew $" << amount << "." << endl;
+                        std::cout << "Jennifer withdrew $" << amount << "." << std::endl;
 						printBalances();
-					}else
-					{
-						cout << "Jennifer cannot withdraw $" << amount <<
-							". Insufficient funds." << endl;
+                    } else {
+                        std::cout << "Jennifer cannot withdraw $" << amount
+                                  << ". Insufficient funds." << std::endl;
 					}
 					pthread_mutex_unlock(&savingsLock);
 					pthread_mutex_unlock(&transferLock);
-				}else
-				{
+                } else {
 					checking = checking - amount;
-					cout << "Jennifer withdrew $" << amount << ". New " <<
-						accountName << " balance: $" << checking << endl;
+                    std::cout << "Jennifer withdrew $" << amount << ". New "
+                              << accountName << " balance: $" << checking << std::endl;
 				}
 				pthread_mutex_unlock(&checkingLock);
-			}else
-			if (account == 1)
-			{
+            } else if(account == 1) {
 				pthread_mutex_lock(&savingsLock);
 				{
-					if (savings > 0)
-					{
+                    if(savings > 0) {
 						savings = savings - amount;
-						cout << "Jennifer withdrew $" << amount << ". New" <<
-							accountName << " balance: $" << savings << endl;
-					}else
-					{
-						cout << "Jennifer cannot withdraw $" << amount <<
-							". Insufficient funds." << endl;
+                        std::cout << "Jennifer withdrew $" << amount << ". New"
+                                  << accountName << " balance: $" << savings << std::endl;
+                    } else {
+                        std::cout << "Jennifer cannot withdraw $" << amount
+                                  << ". Insufficient funds." << std::endl;
 					}
 				}
 				pthread_mutex_unlock(&savingsLock);
-			}else
-			{
+            } else {
 				// Error check for input info.
-				cout << "UNKNOWN ACCOUNT" << endl;
+                std::cout << "UNKNOWN ACCOUNT" << std::endl;
 			}	
-		}else
-		if (operation == 't')
-		{
+        }else if(operation == 't') {
 			// Transfer routine for mother.
 			// Lock both accounts when transfering.
 			pthread_mutex_lock(&transferLock);
 			pthread_mutex_lock(&checkingLock);
 			pthread_mutex_lock(&savingsLock);
-			if (account == 0)
-			{
-				if (savings > 0)
-				{
+            if(account == 0) {
+                if(savings > 0) {
 					checking = checking + amount;
 					savings = savings - amount;
-					cout << "Jennifer transferred $" << amount <<
-						" from savings to checking." << endl;
+                    std::cout << "Jennifer transferred $" << amount
+                              << " from savings to checking." << std::endl;
 					printBalances();
-				}else
-				{
-					cout << "Jennifer cannot transfer $" << amount <<
-						". Insufficient funds." << endl;
+                } else {
+                    std::cout << "Jennifer cannot transfer $" << amount
+                              << ". Insufficient funds." << std::endl;
 				}
-			}else
-			if (account == 1)
-			{
-				if (checking > 0)
-				{
+            } else if(account == 1) {
+                if(checking > 0) {
 					checking = checking - amount;
 					savings = savings + amount;
-					cout << "Jennifer transferred $" << amount <<
-						" from checking to savings." << endl;
+                    std::cout << "Jennifer transferred $" << amount
+                              << " from checking to savings." << std::endl;
 					printBalances();
-				}else
-				{
-					cout << "Jennifer cannot transfer $" << amount <<
-						". Insufficient funds." << endl;
+                } else {
+                    std::cout << "Jennifer cannot transfer $" << amount
+                              << ". Insufficient funds." << std::endl;
 				}
-			}else
-			{
+            } else {
 				// Error check for input info.
-				cout << "UNKNOWN ACCOUNT" << endl;
+                std::cout << "UNKNOWN ACCOUNT" << std::endl;
 			}
 			pthread_mutex_unlock(&savingsLock);
 			pthread_mutex_unlock(&checkingLock);
 			pthread_mutex_unlock(&transferLock);
-		}else
-		{
+        } else {
 			// Error check for input info.
-			cout << "Not a recognized operation" << endl;
+            std::cout << "Not a recognized operation" << std::endl;
 		}
 	}
-	inFile.close();
 	return;
 }
 
 void daughter()
 {
-	string accountName;
+    std::string accountName;
 	char operation;
 	int account;
 	int amount;
-	ifstream inFile;
-	inFile.open("daughter.txt");
+    std::ifstream inFile("daughter.txt");
 	while(!inFile.eof())
 	{
 		inFile >> operation;
 		inFile >> account;
 		inFile >> amount;
-		if (account == 0)
-		{
+        if(account == 0) {
 			accountName = "checking";
-		}else
-		if (account == 1)
-		{
-			accountName == "savings";
+        } else if(account == 1) {
+            accountName = "savings";
 		}
 		
-		if (operation == 'd')
-		{
+        if(operation == 'd') {
 			// Deposit routine for daughter.
-			if (account == 0)
-			{
+            if(account == 0) {
 				pthread_mutex_lock(&checkingLock);
 				checking = checking + amount;
-				cout << "Jill deposited $" << amount << ". New " <<
-					accountName << " balance: $" << checking << endl;
+                std::cout << "Jill deposited $" << amount << ". New "
+                          << accountName << " balance: $" << checking << std::endl;
 				pthread_mutex_unlock(&checkingLock);
-			}else
-			if (account == 1)
-			{
+            } else if(account == 1) {
 				pthread_mutex_lock(&savingsLock);
 				savings = savings + amount;
-				cout << "Jill deposited $" << amount << ". New " <<
-					accountName << " balance: $" << savings << endl;
+                std::cout << "Jill deposited $" << amount << ". New "
+                          << accountName << " balance: $" << savings << std::endl;
 				pthread_mutex_unlock(&savingsLock);
-			}else
-			{
+            } else {
 				// Error check for input info.
-				cout << "UNKNOWN ACCOUNT" << endl;
+                std::cout << "UNKNOWN ACCOUNT" << std::endl;
 			}
-		}else
-		if (operation == 'w')
-		{
+        } else if(operation == 'w') {
 			// Withdraw routine for daughter.
 			// Lock whichever account is being accessed.
-			if (account == 0)
-			{
+            if(account == 0) {
 				pthread_mutex_lock(&checkingLock);
-				if (amount > checking)
-				{
+                if(amount > checking) {
 					// Lock both accounts if transfering.
 					pthread_mutex_lock(&transferLock);
 					pthread_mutex_lock(&savingsLock);
-					if (savings > 0)
-					{
+                    if(savings > 0) {
 						savings = savings + checking;
 						checking = 0;
 						savings = savings - amount;
-						cout << "Jill withdrew $" << amount << "." << endl;
+                        std::cout << "Jill withdrew $" << amount << "." << std::endl;
 						printBalances();
-					}else
-					{
-						cout << "Jill cannot withdraw $" << amount <<
-							". Insufficient funds." << endl;
+                    } else {
+                        std::cout << "Jill cannot withdraw $" << amount
+                                  << ". Insufficient funds." << std::endl;
 					}
 					pthread_mutex_unlock(&savingsLock);
 					pthread_mutex_unlock(&transferLock);
-				}else
-				{
+                } else {
 					checking = checking - amount;
-					cout << "Jill withdrew $" << amount << ". New " <<
-						accountName << " balance: $" << checking << endl;
+                    std::cout << "Jill withdrew $" << amount << ". New "
+                              << accountName << " balance: $" << checking << std::endl;
 				}
 				pthread_mutex_unlock(&checkingLock);
-			}else
-			if (account == 1)
-			{
+            } else if(account == 1) {
 				pthread_mutex_lock(&savingsLock);
 				{
-					if (savings > 0)
-					{
+                    if(savings > 0) {
 						savings = savings - amount;
-						cout << "Jill withdrew $" << amount << ". New" <<
-							accountName << " balance: $" << savings << endl;
-					}else
-					{
-						cout << "Jill cannot withdraw $" << amount <<
-							". Insufficient funds." << endl;
+                        std::cout << "Jill withdrew $" << amount << ". New"
+                                  << accountName << " balance: $" << savings << std::endl;
+                    } else {
+                        std::cout << "Jill cannot withdraw $" << amount
+                                  << ". Insufficient funds." << std::endl;
 					}
 				}
 				pthread_mutex_unlock(&savingsLock);
-			}else
-			{
+            } else {
 				// Error check for input info.
-				cout << "UNKNOWN ACCOUNT" << endl;
+                std::cout << "UNKNOWN ACCOUNT" << std::endl;
 			}	
-		}else
-		if (operation == 't')
-		{
+        } else if(operation == 't') {
 			// Transfer routine for daughter.
 			// Lock both accounts when transfering.
 			pthread_mutex_lock(&transferLock);
 			pthread_mutex_lock(&checkingLock);
 			pthread_mutex_lock(&savingsLock);
-			if (account == 0)
-			{
-				if (savings > 0)
-				{
+            if(account == 0) {
+                if(savings > 0) {
 					checking = checking + amount;
 					savings = savings - amount;
-					cout << "Jill transferred $" << amount <<
-						" from savings to checking." << endl;
+                    std::cout << "Jill transferred $" << amount
+                              << " from savings to checking." << std::endl;
 					printBalances();
-				}else
-				{
-					cout << "Jill cannot transfer $" << amount <<
-						". Insufficient funds." << endl;
+                } else {
+                    std::cout << "Jill cannot transfer $" << amount
+                              << ". Insufficient funds." << std::endl;
 				}
-			}else
-			if (account == 1)
-			{
-				if (checking > 0)
-				{
+            } else if(account == 1) {
+                if(checking > 0) {
 					checking = checking - amount;
 					savings = savings + amount;
-					cout << "Jill transferred $" << amount <<
-						" from checking to savings." << endl;
+                    std::cout << "Jill transferred $" << amount
+                              << " from checking to savings." << std::endl;
 					printBalances();
-				}else
-				{
-					cout << "Jill cannot transfer $" << amount <<
-						". Insufficient funds." << endl;
+                } else {
+                    std::cout << "Jill cannot transfer $" << amount
+                              << ". Insufficient funds." << std::endl;
 				}
-			}else
-			{
+            } else {
 				// Error check for input info.
-				cout << "UNKNOWN ACCOUNT" << endl;
+                std::cout << "UNKNOWN ACCOUNT" << std::endl;
 			}
 			pthread_mutex_unlock(&savingsLock);
 			pthread_mutex_unlock(&checkingLock);
 			pthread_mutex_unlock(&transferLock);
-		}else
-		{
+        } else {
 			// Error check for input info.
-			cout << "Not a recognized operation" << endl;
+            std::cout << "Not a recognized operation" << std::endl;
 		}
 	}
-	inFile.close();
 	return;
 }
 
@@ -538,7 +426,7 @@ void daughter()
 // during a transaction.
 void printBalances()
 {
-	cout << "Checking Balance: $" << checking << endl;
-	cout << "Savings Balance: $" << savings << endl;
+    std::cout << "Checking Balance: $" << checking << std::endl;
+    std::cout << "Savings Balance: $" << savings << std::endl;
 	return;
 }

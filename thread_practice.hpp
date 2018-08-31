@@ -16,7 +16,7 @@
 #include <string>
 
 // Thread that is allows parallel processing.
-void *family_member(void * text_file);
+void *family_member(void* text_file);
 // Simulates the father's actions.
 void father();
 // Simulates the mother's actions.
