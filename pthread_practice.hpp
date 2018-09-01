@@ -17,12 +17,9 @@
 
 // Thread that is allows parallel processing.
 void *family_member(void* text_file);
-// Simulates the father's actions.
-void father();
-// Simulates the mother's actions.
-void mother();
-// Simulates the daughter's actions.
-void daughter();
+
+// Reads a transaction file and applies each one.
+void processTransactions(const std::string& name, std::ifstream& in);
 // Prints the current account balances.
 void printBalances();
 
@@ -32,3 +29,34 @@ int checking = 0; // Checking account value.
 pthread_mutex_t savingsLock; // Mutex for savings.
 pthread_mutex_t checkingLock; // Mutex for checking.
 pthread_mutex_t transferLock; // Mutex to prevent transfer deadlock.
+
+class Transaction;
+std::istream& operator>>(std::istream& in, Transaction& transaction);
+
+enum class Operation {
+    Deposit,
+    Withdrawal,
+    Transfer
+};
+
+enum class AccountType {
+    Checking,
+    Savings
+};
+
+std::ostream& operator<<(std::ostream& out, AccountType type);
+
+class Transaction {
+    public:
+
+        Operation operation() const { return mOperation; }
+        AccountType account() const { return mAccount; }
+        int amount() const { return mAmount; }
+        friend std::istream& operator>>(std::istream& in, Transaction& transaction);
+
+    private:
+        Operation mOperation {Operation::Deposit};
+        AccountType mAccount {AccountType::Checking};
+        int mAmount {0};
+};
+
